@@ -1,0 +1,14 @@
+{
+  "name": "undox",
+  "url" : "https://github.com/ArpEngine/undox/",
+  "license": "MIT",
+  "tags": ["documentation"],
+  "description": "Generate Haxe headers for input doc XML",
+  "version": "0.0.0",
+  "classPath": "src/",
+  "releasenote": "Initial release",
+  "contributors": ["kaikoga"],
+  "main": "undox.Main",
+  "dependencies": {
+  }
+}

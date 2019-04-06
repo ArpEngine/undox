@@ -14,7 +14,7 @@ class Main {
 	public function run():Void {
 		var args = new Args();
 		var context = new Context();
-		for (xml in args.xmls) new XmlReader(xml).read(context);
+		for (xml in args.xmls) XmlReader.readXml(xml, context);
 		new Writer(args.output).write(context);
 	}
 }

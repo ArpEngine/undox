@@ -1,8 +1,8 @@
 package undox.writers;
 
-import sys.io.File;
-import haxe.rtti.CType;
+import undox.data.UType;
 import sys.FileSystem;
+import sys.io.File;
 
 class Writer {
 
@@ -14,79 +14,52 @@ class Writer {
 
 	public function write(context:Context):Void {
 		FileSystem.createDirectory(path);
+		var pwd = Sys.getCwd();
 		Sys.setCwd(path);
-		for (data in context.data) writeData(data);
+		for (utypeDef in context.utypeDefs) writeUtypeDef(utypeDef);
+		Sys.setCwd(pwd);
 	}
 
-	private function writeData(data:TypeTree):Void {
-		switch (data) {
-			case TPackage(_, _, subs): for (sub in subs) writeData(sub);
-			case TClassdecl(c): writeClass(c);
-			case TEnumdecl(e): writeEnum(e);
-			case TTypedecl(t): writeType(t);
-			case TAbstractdecl(a): writeAbstract(a);
+	private function writeUtypeDef(utypeDef:UTypeDef):Void {
+		switch (utypeDef.type) {
+			case Class(def): writeClass(utypeDef, def);
+			case Enum(def): writeEnum(utypeDef, def);
+			case Type(def): writeType(utypeDef, def);
+			case Abstract(def): writeAbstract(utypeDef, def);
 		}
 	}
 
-	private function typePathToFilePath(typePath:Path):String {
-		var filePath:String = typePath.split(".").join("/") + ".hx";
-		var dir = new haxe.io.Path(filePath).dir;
-		if (dir != null) FileSystem.createDirectory(dir);
-		return filePath;
-	}
-
-	private function typePathToPack(typePath:Path):String {
-		var p = typePath.split(".");
-		p.pop();
-		return p.join(".");
-	}
-
-	private function classPathToName(typePath:Path):String {
-		var p = typePath.split(".");
-		return p.pop();
-	}
-
-	private function functionArgumentName(arg:FunctionArgument) {
+	private function ufuncArgToString(arg:UFuncArg) {
 		var l:String = "";
-		if (arg.opt) l += "?";
+		if (arg.optional) l += "?";
 		if (arg.name != "") l += arg.name + ":";
-		l += ctypeToString(arg.t);
-		if (arg.value != null) l += " = " +arg.value;
+		l += utypeToString(arg.type);
+		if (arg.defaultValue != null) l += " = " +arg.defaultValue;
 		return l;
 	}
 
-	private function ctypeToString(t:CType):String {
+	private function utypeToString(t:UType):String {
 		return switch (t) {
-			case CUnknown:
+			case Unknown:
 				"unknown";
-			case CClass(name, params), CEnum(name, params), CTypedef(name, params), CAbstract(name, params):
-				nameWithParams(name, params);
-			case CFunction(args, ret):
-				if (args.length == 0) {
-					"Void -> " +CTypeTools.toString(ret);
-				} else {
-					args.map(functionArgumentName).join(" -> ")+" -> "+CTypeTools.toString(ret);
-				}
-			case CDynamic(d):
-				if (d == null) {
-					"Dynamic";
-				} else {
-					"Dynamic<" + CTypeTools.toString(d) + ">";
-				}
-			case CAnonymous(fields):
-				"{ " + fields.map(@:privateAccess CTypeTools.classField).join(", ") + " }";
+			case Path(utypeInst):
+				utypeInstToString(utypeInst);
+			case Function(ufuncInst):
+				'(${ufuncInst.args.map(ufuncArgToString).join(", ")}) -> ${utypeToString(ufuncInst.ret)}';
+			case Anon(fields):
+				"{ " + fields.map(ufieldToString).join("") + " }";
 		}
 	}
 
-	private function nameWithParams(name:String, params:Array<CType>) {
-		var realName:String = name;
-		if (params.length == 0) {
+	private function utypeInstToString(utypeInst:UTypeInst):String {
+		var realName:String = utypeInst.path;
+		if (utypeInst.params.length == 0) {
 			return realName;
 		}
-		return realName + "<" + params.map(ctypeToString).join(", ") + ">";
+		return realName + "<" + utypeInst.params.map(utypeToString).join(", ") + ">";
 	}
 
-	private function writeMeta(buf:StringBuffer, metas:MetaData) {
+	private function writeMeta(buf:StringBuffer, metas:Array<UMeta>) {
 		for (meta in metas) {
 			if (meta.params.length == 0) {
 				buf += '@${meta.name}';
@@ -96,7 +69,7 @@ class Writer {
 		}
 	}
 
-	private function writeDoc(buf:StringBuffer, doc:String) {
+	private function writeDoc(buf:StringBuffer, doc:UDoc) {
 		if (doc != null) {
 			buf >>= '/**';
 			buf *= doc;
@@ -104,165 +77,141 @@ class Writer {
 		}
 	}
 
-	private function writeClassField(buf:StringBuffer, field:ClassField, isStatic:Bool = false) {
+	private function writeUField(buf:StringBuffer, field:UField) {
 		var l:String = "";
 		buf += '';
-		buf += '/* ${Std.string(field)} */';
+		buf += '/* ${field.raw} */';
 		writeDoc(buf, field.doc);
 		writeMeta(buf, field.meta);
 
-		var isInline:Bool = false;
-		var isDynamic:Bool = false;
-		var access = switch [field.get, field.set] {
-			case [Rights.RNormal, Rights.RNormal]: "";
-			case [Rights.RInline, Rights.RNo]: isInline = true; "";
-			case [Rights.RNormal, Rights.RDynamic]: isDynamic = true; "";
-			case _:
-				var getAccess = switch (field.get) {
-					case RNormal: 'default';
-					case RNo: 'null';
-					case RCall(_): 'get';
-					case _: Std.string(field.get);
-				}
-				var setAccess = switch (field.set) {
-					case RNormal: 'default';
-					case RNo: 'null';
-					case RCall(_): 'set';
-					case _: Std.string(field.set);
-				}
-				'(${getAccess}, ${setAccess})';
-		};
-
-		l += if (field.isPublic) "public " else "private ";
-		if (field.isOverride) l += "override ";
-		if (isInline) l += "inline ";
-		if (isDynamic) l += "dynamic ";
-		if (field.isFinal) l += "final ";
-		var isReallyStatic = isStatic;
-		var realName = field.name;
-		switch (field.type) {
-			case CFunction(args, ret):
-				var realArgs:Array<FunctionArgument> = args;
-				if (isStatic) {
-					if (realArgs.length > 0 && realArgs[0].name == "this") {
-						realArgs = realArgs.copy();
-						realArgs.shift();
-						isReallyStatic = false;
-					} else if (realName == "_new") {
-						realName = "new";
-						isReallyStatic = false;
-					}
-				}
-				if (isReallyStatic) l += "static ";
-				l += 'function ${realName}(${realArgs.map(functionArgumentName).join(", ")}):${ctypeToString(ret)};';
-			case _:
-				if (isReallyStatic) l += "static ";
-				l += 'var ${realName}${access}:${ctypeToString(field.type)}';
-				if (field.expr != null) l += " = " + field.expr;
+		l += field.access.toString();
+		var name = field.name;
+		switch (field.field) {
+			case UVar(type, defaultValue):
+				l += ' var ${name}:${utypeToString(type)}';
+				if (defaultValue != null) l += " = " + defaultValue;
 				l += ";";
+			case UProp(type, get, set, defaultValue):
+				l += ' var ${name}($get, $set):${utypeToString(type)}';
+				if (defaultValue != null) l += " = " + defaultValue;
+				l += ";";
+			case UFun(f):
+				l += ' function ${name}(${f.args.map(ufuncArgToString).join(", ")}):${utypeToString(f.ret)};';
 		}
 		buf += l;
 	}
 
-	private function writeEnumField(buf:StringBuffer, field:EnumField) {
-		var l:String = "";
-		buf += '';
-		buf += '/* ${Std.string(field)} */';
-		writeDoc(buf, field.doc);
-		writeMeta(buf, field.meta);
-		var realName = field.name;
-		if (field.args == null) {
-			buf += '${field.name};';
-		} else {
-			buf += '${field.name}(${field.args.map(cast functionArgumentName).join(", ")});';
-		}
+	private function ufieldToString(field:UField):String {
+		var buf:StringBuffer = 0;
+		writeUField(buf, field);
+		return buf.toString();
 	}
 
-	private function writeClass(def:Classdef) {
+	private function writeUEnumField(buf:StringBuffer, field:UEnumField) {
+		var l:String = "";
+		buf += '';
+		buf += '/* ${field.raw} */';
+		writeDoc(buf, field.doc);
+		writeMeta(buf, field.meta);
+
+		l += field.access.toString();
+		var name = field.name;
+		if (field.args.length == 0) {
+			l += '${name};';
+		} else {
+			l += '${name}(${field.args.map(ufuncArgToString).join(", ")});';
+		}
+		buf += l;
+	}
+
+	private function writeClass(def:UTypeDef, classDef:UClassDef) {
 		var buf:StringBuffer = 0;
-		buf += 'package ${typePathToPack(def.path)};';
+		buf += 'package ${def.path.pack};';
 		buf += '';
 		writeDoc(buf, def.doc);
 		writeMeta(buf, def.meta);
 		var l = "";
-		if (def.isPrivate) l += "private ";
-		l += if (def.isInterface) "interface " else "class ";
-		l += classPathToName(def.path);
-		if (def.superClass != null) {
-			l += " extends " + nameWithParams(def.superClass.path, def.superClass.params);
+		l += def.access.toString();
+		if (l != "") l += " ";
+		l += '${if (classDef.isInterface) "interface" else "class"} ${def.path.name}';
+		if (def.params.length > 0) l += '<${def.params.join(", ")}>';
+		if (classDef.superClass != null) {
+			l += " extends " + utypeInstToString(classDef.superClass);
 		}
-		for (intf in def.interfaces) {
-			l += " implements " + nameWithParams(intf.path, intf.params);
+		for (intf in classDef.interfaces) {
+			l += " implements " + utypeInstToString(intf);
 		}
 		buf >>= l + " {";
-		for (field in def.fields) {
-			writeClassField(buf, field);
-		}
-		for (fStatic in def.statics) {
-			writeClassField(buf, fStatic, true);
+		for (field in classDef.fields) {
+			writeUField(buf, field);
 		}
 		buf <<= '}';
-		File.saveContent(typePathToFilePath(def.path), buf.toString());
+		File.saveContent(def.path.hxFile(), buf.toString());
 	}
 
-	private function writeEnum(def:Enumdef) {
+	private function writeEnum(def:UTypeDef, enumDef:UEnumDef) {
 		var buf:StringBuffer = 0;
-		buf += 'package ${typePathToPack(def.path)};';
+		buf += 'package ${def.path.pack};';
 		buf += '';
 		writeDoc(buf, def.doc);
 		writeMeta(buf, def.meta);
-		buf >>= 'enum ${classPathToName(def.path)} {';
-		for (field in def.constructors) {
-			buf += '${field.name};';
+		var l = "";
+		l += def.access.toString();
+		if (l != "") l += " ";
+		l += 'enum ${def.path.name}';
+		if (def.params.length > 0) l += '<${def.params.join(", ")}>';
+		buf >>= '$l {';
+		for (field in enumDef.fields) {
+			writeUEnumField(buf, field);
 		}
 		buf <<= '}';
-		File.saveContent(typePathToFilePath(def.path), buf.toString());
+		File.saveContent(def.path.hxFile(), buf.toString());
 	}
 
-	private function writeType(def:Typedef) {
+	private function writeType(def:UTypeDef, typeDef:UTypeAliasDef) {
 		var buf:StringBuffer = 0;
-		buf += 'package ${typePathToPack(def.path)};';
+		buf += 'package ${def.path.pack};';
 		buf += '';
 		writeDoc(buf, def.doc);
 		writeMeta(buf, def.meta);
-		switch (def.type) {
-			case CAnonymous(fields):
-				buf >>= 'typedef ${classPathToName(def.path)} = {';
+
+		var l = "";
+		l += def.access.toString();
+		if (l != "") l += " ";
+		l += 'typedef ${def.path.name}';
+		if (def.params.length > 0) l += '<${def.params.join(", ")}>';
+		switch (typeDef.type) {
+			case Anon(fields):
+				buf >>= '$l = {';
 				for (field in fields) {
-					writeClassField(buf, field);
+					writeUField(buf, field);
 				}
 				buf <<= '};';
 		case _:
-			buf += 'typedef ${classPathToName(def.path)} = ${ctypeToString(def.type)};';
+			buf += '$l = ${utypeToString(typeDef.type)};';
 		}
-		File.saveContent(typePathToFilePath(def.path), buf.toString());
+		File.saveContent(def.path.hxFile(), buf.toString());
 	}
 
-	private function writeAbstract(def:Abstractdef) {
+	private function writeAbstract(def:UTypeDef, abstractDef:UAbstractDef) {
 		var buf:StringBuffer = 0;
-		buf += 'package ${typePathToPack(def.path)};';
+		buf += 'package ${def.path.pack};';
 		buf += '';
 		writeDoc(buf, def.doc);
 		writeMeta(buf, def.meta);
-		var aThis:CType = def.athis;
-		var implicitTo:CType = null;
-		var implicitFrom:CType = null;
-		for (from in def.from) if (from.field == null) implicitFrom = from.t;
-		for (to in def.to) if (to.field == null) implicitTo = to.t;
-		var l = "abstract " + classPathToName(def.path);
-		if (aThis != null) l += '(${ctypeToString(def.athis)})';
-		if (implicitFrom != null) l += ' from ${ctypeToString(implicitFrom)}';
-		if (implicitTo != null) l += ' to ${ctypeToString(implicitTo)}';
+		var l = "";
+		l += def.access.toString();
+		if (l != "") l += " ";
+		l += "abstract " + def.path.name;
+		if (def.params.length > 0) l += '<${def.params.join(", ")}>';
+		if (abstractDef.aThis != null) l += '(${utypeToString(abstractDef.aThis)})';
+		for (from in abstractDef.implicitFrom) l += ' from ${utypeToString(from)}';
+		for (to in abstractDef.implicitTo) l += ' to ${utypeToString(to)}';
 		buf >>= '$l {';
-		if (def.impl != null) {
-			for (field in def.impl.fields) {
-				writeClassField(buf, field);
-			}
-			for (fStatic in def.impl.statics) {
-				writeClassField(buf, fStatic, true);
-			}
+		for (field in abstractDef.fields) {
+			writeUField(buf, field);
 		}
 		buf <<= '}';
-		File.saveContent(typePathToFilePath(def.path), buf.toString());
+		File.saveContent(def.path.hxFile(), buf.toString());
 	}
 }

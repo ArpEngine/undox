@@ -1,23 +1,19 @@
 package undox.writers;
 
 import undox.data.UType;
-import sys.FileSystem;
-import sys.io.File;
 
 class Writer {
 
-	private var path:String;
+	private var fileContext:FileContext;
 
 	public function new(path:String) {
-		this.path = path;
+		this.fileContext = new FileContext(path);
 	}
 
 	public function write(context:Context):Void {
-		FileSystem.createDirectory(path);
-		var pwd = Sys.getCwd();
-		Sys.setCwd(path);
+		fileContext.open();
 		for (utypeDef in context.utypeDefs) writeUtypeDef(utypeDef);
-		Sys.setCwd(pwd);
+		fileContext.close();
 	}
 
 	private function writeUtypeDef(utypeDef:UTypeDef):Void {
@@ -126,8 +122,6 @@ class Writer {
 
 	private function writeClass(def:UTypeDef, classDef:UClassDef) {
 		var buf:StringBuffer = 0;
-		buf += 'package ${def.path.pack};';
-		buf += '';
 		writeDoc(buf, def.doc);
 		writeMeta(buf, def.meta);
 		var l = "";
@@ -146,13 +140,11 @@ class Writer {
 			writeUField(buf, field);
 		}
 		buf <<= '}';
-		File.saveContent(def.path.hxFile(), buf.toString());
+		fileContext.writeHx(def.path, buf.toString());
 	}
 
 	private function writeEnum(def:UTypeDef, enumDef:UEnumDef) {
 		var buf:StringBuffer = 0;
-		buf += 'package ${def.path.pack};';
-		buf += '';
 		writeDoc(buf, def.doc);
 		writeMeta(buf, def.meta);
 		var l = "";
@@ -165,13 +157,11 @@ class Writer {
 			writeUEnumField(buf, field);
 		}
 		buf <<= '}';
-		File.saveContent(def.path.hxFile(), buf.toString());
+		fileContext.writeHx(def.path, buf.toString());
 	}
 
 	private function writeType(def:UTypeDef, typeDef:UTypeAliasDef) {
 		var buf:StringBuffer = 0;
-		buf += 'package ${def.path.pack};';
-		buf += '';
 		writeDoc(buf, def.doc);
 		writeMeta(buf, def.meta);
 
@@ -190,13 +180,11 @@ class Writer {
 		case _:
 			buf += '$l = ${utypeToString(typeDef.type)};';
 		}
-		File.saveContent(def.path.hxFile(), buf.toString());
+		fileContext.writeHx(def.path, buf.toString());
 	}
 
 	private function writeAbstract(def:UTypeDef, abstractDef:UAbstractDef) {
 		var buf:StringBuffer = 0;
-		buf += 'package ${def.path.pack};';
-		buf += '';
 		writeDoc(buf, def.doc);
 		writeMeta(buf, def.meta);
 		var l = "";
@@ -212,6 +200,6 @@ class Writer {
 			writeUField(buf, field);
 		}
 		buf <<= '}';
-		File.saveContent(def.path.hxFile(), buf.toString());
+		fileContext.writeHx(def.path, buf.toString());
 	}
 }

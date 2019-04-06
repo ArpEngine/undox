@@ -116,20 +116,50 @@ class XmlReaderTools {
 				CClass(name, params) |
 				CTypedef(name, params) |
 				CAbstract(name, params):
-				UType.Path({path: name, params: params.map(toUType)});
+					Path(toUTypeInst({path: name, params: params}));
 			case CFunction(args, ret):
 				Function(toUFuncInst(args, ret));
 			case CAnonymous(fields):
 				Anon(fields.map(field -> toUField(field, false)));
 			case CDynamic(t):
-				if (t == null) Path({ path: "Dynamic", params: [] }) else Path({ path: "Dynamic", params: [toUType(t)] });
+				if (t == null) {
+					Path(toUTypeInst({ path: "Dynamic", params: [] }));
+				} else {
+					Path(toUTypeInst({ path: "Dynamic", params: [t] }));
+				}
 		}
 	}
 
 	public static function toUTypeInst(pathParams:PathParams):UTypeInst {
+		var path = pathParams.path;
+		var params = pathParams.params.map(toUType);
+
+		// try demangle generics
+		/*
+		if (path.split(".").pop().indexOf("_") > 0) {
+			var p = path.split(".").join("_").split("_");
+			var genericPath:Array<String> = [];
+			var genericPaths:Array<String> = [];
+			for (c in p) {
+				genericPath.push(c);
+				if (c.charCodeAt(0) < 0x60) {
+					genericPaths.push(genericPath.join("."));
+					genericPath = [];
+				}
+			}
+			if (genericPaths.length > 0) {
+				return {
+					path: genericPaths.shift(),
+					params: genericPaths.map(p -> Path({ path: p, params: [] }))
+				}
+			}
+		}
+		*/
+		// end try demangle
+
 		return {
-			path: pathParams.path,
-			params: pathParams.params.map(toUType)
+			path: path,
+			params: params
 		}
 	}
 
@@ -146,7 +176,7 @@ class XmlReaderTools {
 	}
 
 	public static function toUMeta(meta:MetaData):Array<UMeta> {
-		return meta.map(data -> ({ name: data.name, params: data.params }:UMeta));
+		return meta.filter(data -> data.name != ":build" && data.name != ":autoBuild").map(data -> ({ name: data.name, params: data.params }:UMeta));
 	}
 
 	public static function toURaw(raw:Dynamic):URaw {

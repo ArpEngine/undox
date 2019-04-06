@@ -1,36 +1,41 @@
 package undox.data;
 
-import sys.FileSystem;
+@:structInit
+private class UPathImpl {
+	public var pack:String;
+	public var module:String;
+	public var name:String;
 
-abstract UPath(String) to String {
-	inline private function new(value:String) this = value;
+	public function toString():String {
+		if (module == "") return name;
+		return (if (pack != "") '$pack.' else "") + module + (if (module != name) '.$name' else "");
+	}
+}
+
+@:forward(pack, module, name, toString)
+abstract UPath(UPathImpl) {
+	inline private function new(impl:UPathImpl) this = impl;
 
 	@:from
 	private static function fromString(value:String):UPath {
 		var p = value.split(".");
 		p = p.map(s -> ~/^_/.replace(s, ""));
-		return new UPath(p.join("."));
-	}
-
-	public function hxFile():String {
-		var filePath:String = this.split(".").join("/") + ".hx";
-		var dir = new haxe.io.Path(filePath).dir;
-		if (dir != null) FileSystem.createDirectory(dir);
-		return filePath;
-	}
-
-	public var pack(get, never):String;
-	private function get_pack():String {
-		var p = this.split(".");
-		p.pop();
-		if (p.length > 0 && p[p.length - 1].charCodeAt(0) < 0x60) {
+		var name = p.pop();
+		var module = if (p.length > 0 && p[p.length - 1].charCodeAt(0) < 0x60) {
 			p.pop();
+		} else {
+			name;
 		}
-		return p.join(".");
+		var pack = p.join(".");
+		switch (name) {
+			case "K" | "V" | "X" | "W" | "Hit" | "T":
+				module = "";
+		}
+		return new UPath({ pack: pack, module: module, name: name });
 	}
 
-	public var name(get, never):String;
-	inline private function get_name():String return this.split(".").pop();
+	@:to
+	public function toString():String return this.toString();
 }
 
 abstract URaw(String) from String to String { }

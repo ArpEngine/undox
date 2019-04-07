@@ -42,6 +42,8 @@ abstract URaw(String) from String to String { }
 
 abstract UDoc(String) from String to String { }
 
+abstract USrcDoc(String) from String to String { }
+
 @:structInit
 class UMeta {
 	public var name:String;
@@ -110,6 +112,7 @@ class UTypeDef {
 	public var params:Array<UPath>;
 	public var raw:URaw;
 	public var doc:UDoc;
+	public var srcDoc:USrcDoc;
 	public var meta:Array<UMeta>;
 	public var access:UAccess;
 	public var type:UTypeKind;
@@ -153,6 +156,7 @@ class UField {
 	public var name:String;
 	public var raw:URaw;
 	public var doc:UDoc;
+	public var srcDoc:USrcDoc;
 	public var meta:Array<UMeta>;
 	public var access:UAccess;
 	public var field:UFieldKind;
@@ -169,6 +173,7 @@ class UEnumField {
 	public var name:String;
 	public var raw:URaw;
 	public var doc:UDoc;
+	public var srcDoc:USrcDoc;
 	public var meta:Array<UMeta>;
 	public var access:UAccess;
 	public var args:Array<UFuncArg>;

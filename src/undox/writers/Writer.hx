@@ -55,7 +55,13 @@ class Writer {
 		return realName + "<" + utypeInst.params.map(utypeToString).join(", ") + ">";
 	}
 
+	private function writeRaw(buf:StringBuffer, raw:URaw) {
+		if (true) return;
+		buf += '/* ${raw} */';
+	}
+
 	private function writeMeta(buf:StringBuffer, metas:Array<UMeta>) {
+		if (true) return;
 		for (meta in metas) {
 			if (meta.params.length == 0) {
 				buf += '@${meta.name}';
@@ -65,7 +71,12 @@ class Writer {
 		}
 	}
 
-	private function writeDoc(buf:StringBuffer, doc:UDoc) {
+	private function writeDoc(buf:StringBuffer, doc:UDoc, srcDoc:USrcDoc) {
+		if (srcDoc != null) {
+			buf >>= '@doc(/*';
+			buf *= srcDoc;
+			buf <<= '*/)';
+		}
 		if (doc != null) {
 			buf >>= '/**';
 			buf *= doc;
@@ -76,9 +87,9 @@ class Writer {
 	private function writeUField(buf:StringBuffer, field:UField) {
 		var l:String = "";
 		buf += '';
-		buf += '/* ${field.raw} */';
-		writeDoc(buf, field.doc);
+		writeRaw(buf, field.raw);
 		writeMeta(buf, field.meta);
+		writeDoc(buf, field.doc, field.srcDoc);
 
 		l += field.access.toString();
 		var name = field.name;
@@ -106,9 +117,9 @@ class Writer {
 	private function writeUEnumField(buf:StringBuffer, field:UEnumField) {
 		var l:String = "";
 		buf += '';
-		buf += '/* ${field.raw} */';
-		writeDoc(buf, field.doc);
+		writeRaw(buf, field.raw);
 		writeMeta(buf, field.meta);
+		writeDoc(buf, field.doc, field.srcDoc);
 
 		l += field.access.toString();
 		var name = field.name;
@@ -120,10 +131,11 @@ class Writer {
 		buf += l;
 	}
 
+	@hoge(/*aaa*/)
 	private function writeClass(def:UTypeDef, classDef:UClassDef) {
 		var buf:StringBuffer = 0;
-		writeDoc(buf, def.doc);
 		writeMeta(buf, def.meta);
+		writeDoc(buf, def.doc, def.srcDoc);
 		var l = "";
 		l += def.access.toString();
 		if (l != "") l += " ";
@@ -145,8 +157,8 @@ class Writer {
 
 	private function writeEnum(def:UTypeDef, enumDef:UEnumDef) {
 		var buf:StringBuffer = 0;
-		writeDoc(buf, def.doc);
 		writeMeta(buf, def.meta);
+		writeDoc(buf, def.doc, def.srcDoc);
 		var l = "";
 		l += def.access.toString();
 		if (l != "") l += " ";
@@ -162,8 +174,8 @@ class Writer {
 
 	private function writeType(def:UTypeDef, typeDef:UTypeAliasDef) {
 		var buf:StringBuffer = 0;
-		writeDoc(buf, def.doc);
 		writeMeta(buf, def.meta);
+		writeDoc(buf, def.doc, def.srcDoc);
 
 		var l = "";
 		l += def.access.toString();
@@ -185,8 +197,8 @@ class Writer {
 
 	private function writeAbstract(def:UTypeDef, abstractDef:UAbstractDef) {
 		var buf:StringBuffer = 0;
-		writeDoc(buf, def.doc);
 		writeMeta(buf, def.meta);
+		writeDoc(buf, def.doc, def.srcDoc);
 		var l = "";
 		l += def.access.toString();
 		if (l != "") l += " ";

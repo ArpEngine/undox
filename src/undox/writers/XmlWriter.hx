@@ -105,16 +105,16 @@ class XmlWriter {
 		switch (field.field) {
 			case UVar(type, defaultValue):
 				writeUType(node, type);
-			case UProp(type, get, set, defaultValue):
+			case UProp(type, getVal, setVal, defaultValue):
 				writeUType(node, type);
 				switch get {
-					case "null": node.set("get", "null");
-					case "get": node.set("get", "accessor");
+					case Null: node.set("get", "null");
+					case Get: node.set("get", "accessor");
 					case _:
 				}
 				switch set {
-					case "null": node.set("set", "null");
-					case "set": node.set("set", "accessor");
+					case Null: node.set("set", "null");
+					case Set: node.set("set", "accessor");
 					case _:
 				}
 			case UFun(fun):

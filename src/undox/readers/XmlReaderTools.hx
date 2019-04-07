@@ -11,8 +11,6 @@ class XmlReaderTools {
 		var isInline:Bool = false;
 		var isDynamic:Bool = false;
 		var isVar:Bool = false;
-		var get:String;
-		var set:String;
 
 		var name = classField.name;
 
@@ -46,17 +44,17 @@ class XmlReaderTools {
 				[_, RInline, RNo]:
 				UVar(toUType(classField.type), classField.expr);
 			case _:
-				get = switch (classField.get) {
-					case RNormal: 'default';
-					case RNo: 'null';
-					case RCall(_): 'get';
-					case _: Std.string(classField.get);
+				var get:UFieldAccess = switch (classField.get) {
+					case RNormal: Default;
+					case RNo: Null;
+					case RCall(_): Get;
+					case _: Default; // unused or other paths
 				}
-				set = switch (classField.set) {
-					case RNormal: 'default';
-					case RNo: 'null';
-					case RCall(_): 'set';
-					case _: Std.string(classField.set);
+				var set:UFieldAccess = switch (classField.set) {
+					case RNormal: Default;
+					case RNo: Null;
+					case RCall(_): Set;
+					case _: Default; // unused or other paths
 				}
 				UProp(toUType(classField.type), get, set, classField.expr);
 		};

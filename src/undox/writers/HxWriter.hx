@@ -55,6 +55,14 @@ class HxWriter {
 		return realName + "<" + utypeInst.params.map(utypeToString).join(", ") + ">";
 	}
 
+	private function ufieldAccessToString(ufieldAccess:UFieldAccess):String {
+		return switch ufieldAccess {
+			case Default: "default";
+			case Null: "null";
+			case Get: "get";
+			case Set: "set";
+		}
+	}
 	private function writeRaw(buf:StringBuffer, raw:URaw) {
 		if (true) return;
 		buf += '/* ${raw} */';
@@ -98,8 +106,8 @@ class HxWriter {
 				l += ' var ${name}:${utypeToString(type)}';
 				if (defaultValue != null) l += " = " + defaultValue;
 				l += ";";
-			case UProp(type, get, set, defaultValue):
-				l += ' var ${name}($get, $set):${utypeToString(type)}';
+			case UProp(type, getVal, setVal, defaultValue):
+				l += ' var ${name}(${ufieldAccessToString(getVal)}, ${ufieldAccessToString(setVal)}):${utypeToString(type)}';
 				if (defaultValue != null) l += " = " + defaultValue;
 				l += ";";
 			case UFun(f):

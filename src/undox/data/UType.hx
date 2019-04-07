@@ -164,8 +164,15 @@ class UField {
 
 enum UFieldKind {
 	UVar(type:UType, defaultValue:String);
-	UProp(type:UType, get:String, set:String, defaultValue:String);
+	UProp(type:UType, get:UFieldAccess, set:UFieldAccess, defaultValue:String);
 	UFun(f:UFuncInst);
+}
+
+enum UFieldAccess {
+	Default;
+	Null;
+	Get;
+	Set;
 }
 
 @:structInit

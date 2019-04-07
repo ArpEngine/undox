@@ -2,12 +2,12 @@ package undox.writers;
 
 import undox.data.UType;
 
-class Writer {
+class HxWriter {
 
 	private var fileContext:FileContext;
 
 	public function new(path:String) {
-		this.fileContext = new FileContext(path);
+		this.fileContext = FileContext.root(path);
 	}
 
 	public function write(context:Context):Void {
@@ -131,7 +131,6 @@ class Writer {
 		buf += l;
 	}
 
-	@hoge(/*aaa*/)
 	private function writeClass(def:UTypeDef, classDef:UClassDef) {
 		var buf:StringBuffer = 0;
 		writeMeta(buf, def.meta);

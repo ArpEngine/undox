@@ -1,6 +1,7 @@
 package undox;
 
-import undox.writers.Writer;
+import undox.writers.XmlWriter;
+import undox.writers.HxWriter;
 import undox.readers.XmlReader;
 
 class Main {
@@ -15,6 +16,11 @@ class Main {
 		var args = new Args();
 		var context = new Context();
 		for (xml in args.xmls) XmlReader.readXml(xml, context);
-		new Writer(args.output).write(context);
+		switch (args.format) {
+			case "xml":
+				new XmlWriter(args.output).write(context);
+			case _:
+				new HxWriter(args.output).write(context);
+		}
 	}
 }

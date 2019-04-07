@@ -29,7 +29,7 @@ abstract UPath(UPathImpl) {
 		var pack = p.join(".");
 		switch (name) {
 			case "K" | "V" | "X" | "W" | "Hit" | "T":
-				module = "";
+				module = ""; // FIXME
 		}
 		return new UPath({ pack: pack, module: module, name: name });
 	}
